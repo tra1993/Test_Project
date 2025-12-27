@@ -1,0 +1,38 @@
+name: "Build & Upload APK to R2"
+
+on:
+  push:
+    branches:
+      - main  # သင် Code ကို main branch ထဲ push လုပ်တိုင်း build မယ်
+
+jobs:
+  export_android:
+    runs-on: ubuntu-latest
+    name: Export Android APK
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Godot ကို အသုံးပြုပြီး APK Build လုပ်ပေးမည့် Action
+      - name: Godot Android Export
+        uses: firebelley/godot-export@v5.2.1
+        with:
+          godot_executable_download_url: https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_linux.x86_64.zip
+          godot_export_templates_download_url: https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz
+          relative_project_path: ./
+          archive_export_output: true
+          export_debug: true  # လောလောဆယ် Debug build အနေနဲ့ ထုတ်မယ်
+
+      # Build ထွက်လာသည့် APK ကို Cloudflare R2 ဆီ ပို့ခြင်း
+      - name: Upload to R2 Cloud
+        uses: jakejarvis/s3-sync-action@master
+        with:
+          args: --follow-symlinks
+        env:
+          AWS_S3_BUCKET: ${{ secrets.R2_BUCKET }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_S3_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          SOURCE_DIR: 'exports'  # Godot က APK ထုတ်ပေးတဲ့ folder နာမည်
+          DEST_DIR: 'android-builds/'
+
